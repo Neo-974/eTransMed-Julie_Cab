@@ -1,6 +1,6 @@
 -- eTransMed — SETUP COMPLET (NOUVEAU projet Supabase, SQL Editor)
 -- Schéma de base + inscription + tournées + paramètres cabinet & invitations.
--- Données fictives / anonymisées uniquement (Supabase n'est pas HDS).
+-- Rejouable (idempotent). Données fictives / anonymisées uniquement (non-HDS).
 
 -- ====================================================================
 -- PARTIE 1 — SCHÉMA DE BASE
@@ -27,7 +27,9 @@ create table if not exists public.cabinets (
 -- ============================================================
 --  Profils (1-1 avec auth.users) + rôle dans le cabinet
 -- ============================================================
-create type public.user_role as enum ('titulaire', 'collaborateur', 'remplacant');
+do $$ begin
+  create type public.user_role as enum ('titulaire', 'collaborateur', 'remplacant');
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -89,7 +91,9 @@ create index if not exists idx_patients_cabinet on public.patients(cabinet_id, n
 -- ============================================================
 --  Passages : une dictée = un audio -> texte, relu et validé
 -- ============================================================
-create type public.passage_status as enum ('brouillon', 'valide');
+do $$ begin
+  create type public.passage_status as enum ('brouillon', 'valide');
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.passages (
   id                  uuid primary key default gen_random_uuid(),
@@ -109,8 +113,12 @@ create index if not exists idx_passages_patient_day on public.passages(patient_i
 -- ============================================================
 --  Transmissions : fusion chronologique des passages d'un jour
 -- ============================================================
-create type public.transmission_format as enum ('fluide', 'ciblee');
-create type public.transmission_status as enum ('brouillon', 'validee');
+do $$ begin
+  create type public.transmission_format as enum ('fluide', 'ciblee');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create type public.transmission_status as enum ('brouillon', 'validee');
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.transmissions (
   id            uuid primary key default gen_random_uuid(),
@@ -152,34 +160,44 @@ alter table public.transmissions enable row level security;
 alter table public.audit_log     enable row level security;
 
 -- Profils : chacun lit/écrit le sien
+drop policy if exists "profiles_self_select" on public.profiles;
 create policy "profiles_self_select" on public.profiles
   for select using (id = auth.uid() or cabinet_id = public.current_cabinet_id());
+drop policy if exists "profiles_self_upsert" on public.profiles;
 create policy "profiles_self_upsert" on public.profiles
   for insert with check (id = auth.uid());
+drop policy if exists "profiles_self_update" on public.profiles;
 create policy "profiles_self_update" on public.profiles
   for update using (id = auth.uid());
 
 -- Cabinets : membres du cabinet
+drop policy if exists "cabinets_member_select" on public.cabinets;
 create policy "cabinets_member_select" on public.cabinets
   for select using (id = public.current_cabinet_id());
+drop policy if exists "cabinets_insert" on public.cabinets;
 create policy "cabinets_insert" on public.cabinets
   for insert with check (true);
 
 -- Patients / passages / transmissions : visibilité au sein du cabinet
+drop policy if exists "patients_cabinet_all" on public.patients;
 create policy "patients_cabinet_all" on public.patients
   for all using (cabinet_id = public.current_cabinet_id())
   with check (cabinet_id = public.current_cabinet_id());
 
+drop policy if exists "passages_cabinet_all" on public.passages;
 create policy "passages_cabinet_all" on public.passages
   for all using (cabinet_id = public.current_cabinet_id())
   with check (cabinet_id = public.current_cabinet_id());
 
+drop policy if exists "transmissions_cabinet_all" on public.transmissions;
 create policy "transmissions_cabinet_all" on public.transmissions
   for all using (cabinet_id = public.current_cabinet_id())
   with check (cabinet_id = public.current_cabinet_id());
 
+drop policy if exists "audit_cabinet_select" on public.audit_log;
 create policy "audit_cabinet_select" on public.audit_log
   for select using (cabinet_id = public.current_cabinet_id());
+drop policy if exists "audit_insert" on public.audit_log;
 create policy "audit_insert" on public.audit_log
   for insert with check (cabinet_id = public.current_cabinet_id());
 
@@ -192,11 +210,13 @@ on conflict (id) do nothing;
 
 -- Accès aux fichiers audio réservé aux membres du même cabinet.
 -- Convention de chemin : <cabinet_id>/<passage_id>.webm
+drop policy if exists "audio_cabinet_read" on storage.objects;
 create policy "audio_cabinet_read" on storage.objects
   for select using (
     bucket_id = 'passages-audio'
     and (storage.foldername(name))[1] = public.current_cabinet_id()::text
   );
+drop policy if exists "audio_cabinet_write" on storage.objects;
 create policy "audio_cabinet_write" on storage.objects
   for insert with check (
     bucket_id = 'passages-audio'
