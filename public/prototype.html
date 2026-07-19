@@ -1,0 +1,659 @@
+<title>eTransMed — Prototype cliquable</title>
+<style>
+  :root {
+    --ground:#e7efec; --app-bg:#f6faf9; --surface:#ffffff;
+    --ink:#0f1f1c; --muted:#5b6b67; --faint:#8598931a; --line:#e2eae7;
+    --brand:#0d9488; --brand-deep:#0f5e57; --brand-ink:#ffffff;
+    --amber-ink:#8a5a09; --amber-bg:#fbedcf; --amber-line:#eecf8e;
+    --emerald-ink:#04724d; --emerald-bg:#cdeede; --emerald-line:#8fd6b6;
+    --danger:#b3261e; --danger-bg:#fbe6e4;
+    --shadow:0 24px 60px -20px rgba(15,60,55,.45);
+    --radius:20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#08110f; --app-bg:#0e1917; --surface:#15221f;
+      --ink:#eaf2f0; --muted:#94a8a2; --line:#233330;
+      --brand:#2dd4bf; --brand-deep:#0d9488; --brand-ink:#04241f;
+      --amber-ink:#f3ca77; --amber-bg:#3a2c11; --amber-line:#5a4519;
+      --emerald-ink:#7ce7b7; --emerald-bg:#0f2f24; --emerald-line:#1d5442;
+      --danger:#f4a9a2; --danger-bg:#3a1714;
+      --shadow:0 24px 70px -20px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:#e7efec; --app-bg:#f6faf9; --surface:#ffffff;
+    --ink:#0f1f1c; --muted:#5b6b67; --line:#e2eae7;
+    --brand:#0d9488; --brand-deep:#0f5e57; --brand-ink:#ffffff;
+    --amber-ink:#8a5a09; --amber-bg:#fbedcf; --amber-line:#eecf8e;
+    --emerald-ink:#04724d; --emerald-bg:#cdeede; --emerald-line:#8fd6b6;
+    --danger:#b3261e; --danger-bg:#fbe6e4;
+    --shadow:0 24px 60px -20px rgba(15,60,55,.45);
+  }
+  :root[data-theme="dark"] {
+    --ground:#08110f; --app-bg:#0e1917; --surface:#15221f;
+    --ink:#eaf2f0; --muted:#94a8a2; --line:#233330;
+    --brand:#2dd4bf; --brand-deep:#0d9488; --brand-ink:#04241f;
+    --amber-ink:#f3ca77; --amber-bg:#3a2c11; --amber-line:#5a4519;
+    --emerald-ink:#7ce7b7; --emerald-bg:#0f2f24; --emerald-line:#1d5442;
+    --danger:#f4a9a2; --danger-bg:#3a1714;
+    --shadow:0 24px 70px -20px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 15% -5%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--brand-deep) 14%, transparent), transparent 55%),
+      var(--ground);
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .stage {
+    min-height:100dvh;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+    align-items:center;
+    gap:28px;
+    padding:32px clamp(16px,4vw,56px);
+  }
+  @media (max-width:900px){
+    .stage{ grid-template-columns:1fr; justify-items:center; gap:20px; }
+    .rail{ max-width:420px; }
+    .rail.right{ order:3; }
+  }
+
+  .rail { max-width:340px; }
+  .rail .kicker {
+    font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--brand-deep); font-weight:700; margin:0 0 10px;
+  }
+  :root[data-theme="dark"] .rail .kicker, @media (prefers-color-scheme:dark){}
+  .rail h1 { font-size:clamp(26px,3.4vw,34px); line-height:1.08; margin:0 0 12px; text-wrap:balance; letter-spacing:-.02em;}
+  .rail p { color:var(--muted); line-height:1.55; margin:0 0 14px; font-size:15px;}
+  .legend { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+  .legend .row { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--muted); }
+  .legend .dot { width:22px; height:22px; border-radius:7px; display:grid; place-items:center; flex:none; font-size:12px; }
+  .legend .row b { color:var(--ink); font-weight:600; }
+  .warnbox {
+    margin-top:20px; border:1px solid var(--amber-line); background:var(--amber-bg);
+    color:var(--amber-ink); border-radius:14px; padding:12px 14px; font-size:13px; line-height:1.5;
+  }
+  .warnbox b{ display:block; margin-bottom:2px; }
+  .flowmap { display:flex; flex-direction:column; gap:2px; margin-top:6px; }
+  .flowmap button {
+    text-align:left; border:0; background:transparent; color:var(--muted);
+    font:inherit; font-size:13.5px; padding:7px 10px; border-radius:9px; cursor:pointer;
+    display:flex; gap:10px; align-items:center; width:100%;
+  }
+  .flowmap button:hover{ background:color-mix(in srgb, var(--brand) 10%, transparent); color:var(--ink); }
+  .flowmap button[aria-current="true"]{ background:color-mix(in srgb,var(--brand) 16%, transparent); color:var(--ink); font-weight:600;}
+  .flowmap .n { width:20px; height:20px; border-radius:50%; border:1.5px solid currentColor; display:grid; place-items:center; font-size:11px; flex:none; opacity:.8;}
+
+  /* ------- device ------- */
+  .device {
+    width:392px; max-width:calc(100vw - 32px);
+    background:#0b1512;
+    border-radius:44px;
+    padding:12px;
+    box-shadow:var(--shadow);
+    position:relative;
+  }
+  .device::after{ content:""; position:absolute; left:50%; transform:translateX(-50%); bottom:9px; width:120px; height:5px; border-radius:3px; background:#ffffff30; }
+  .screen {
+    background:var(--app-bg);
+    border-radius:34px;
+    height:788px; max-height:calc(100dvh - 96px);
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    position:relative;
+  }
+
+  .statusbar {
+    height:34px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:13px; font-weight:600; color:var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .statusbar .icons{ display:flex; gap:6px; align-items:center; opacity:.85;}
+  .statusbar .bat{ width:22px; height:11px; border:1.5px solid var(--ink); border-radius:3px; position:relative; opacity:.7;}
+  .statusbar .bat::before{ content:""; position:absolute; inset:1.5px; width:70%; background:var(--ink); border-radius:1px;}
+  .statusbar .bat::after{ content:""; position:absolute; right:-3px; top:3px; width:2px; height:5px; background:var(--ink); border-radius:1px;}
+
+  .appbar {
+    flex:none; background:var(--brand-deep); color:#fff;
+    padding:10px 16px 12px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .appbar .back { background:#ffffff22; border:0; color:#fff; width:32px; height:32px; border-radius:10px; font-size:17px; cursor:pointer; display:grid; place-items:center; flex:none;}
+  .appbar .back:hover{ background:#ffffff33; }
+  .appbar .title { font-weight:700; font-size:17px; letter-spacing:-.01em; }
+  .appbar .sub { font-size:12px; color:#ffffffb0; margin-top:1px;}
+  .appbar .brandmark{ display:flex; align-items:center; gap:9px;}
+  .appbar .logo{ width:30px; height:30px; border-radius:9px; background:linear-gradient(140deg,#5eead4,#0d9488); display:grid; place-items:center; color:#04312b; font-weight:800; font-size:15px; flex:none; box-shadow:inset 0 0 0 1px #ffffff30;}
+  .appbar .grow{ flex:1; }
+
+  .ribbon {
+    flex:none; background:var(--amber-bg); color:var(--amber-ink);
+    font-size:11.5px; text-align:center; padding:5px 10px; font-weight:600;
+    border-bottom:1px solid var(--amber-line);
+    letter-spacing:.01em;
+  }
+
+  .body { flex:1; overflow-y:auto; overflow-x:hidden; padding:16px; -webkit-overflow-scrolling:touch;}
+  .body::-webkit-scrollbar{ width:0; }
+  .fade { animation:fade .28s ease both; }
+  @keyframes fade { from{ opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  @media (prefers-reduced-motion:reduce){ .fade{ animation:none; } }
+
+  .tabbar {
+    flex:none; display:flex; border-top:1px solid var(--line); background:var(--surface);
+    padding:6px 8px 10px;
+  }
+  .tabbar button{
+    flex:1; background:transparent; border:0; cursor:pointer; color:var(--muted);
+    font:inherit; font-size:11px; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; border-radius:12px;
+  }
+  .tabbar button .ic{ font-size:20px; line-height:1; }
+  .tabbar button[aria-current="true"]{ color:var(--brand-deep); }
+  :root[data-theme="dark"] .tabbar button[aria-current="true"]{ color:var(--brand); }
+
+  /* ------- components ------- */
+  h2.h { font-size:21px; margin:2px 0 2px; letter-spacing:-.02em;}
+  .muted { color:var(--muted); }
+  .sec-label { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:20px 2px 8px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:16px; }
+  .list { display:flex; flex-direction:column; }
+  .patient-row { display:flex; align-items:center; gap:12px; padding:13px 14px; border:0; background:transparent; width:100%; text-align:left; cursor:pointer; font:inherit; color:var(--ink); border-bottom:1px solid var(--line);}
+  .patient-row:last-child{ border-bottom:0; }
+  .patient-row:hover{ background:color-mix(in srgb,var(--brand) 7%, transparent); }
+  .avatar { width:42px; height:42px; border-radius:13px; flex:none; display:grid; place-items:center; font-weight:700; font-size:15px; color:var(--brand-deep); background:color-mix(in srgb,var(--brand) 16%, var(--surface)); }
+  :root[data-theme="dark"] .avatar{ color:var(--brand); }
+  .patient-row .nm{ font-weight:600; font-size:15.5px;}
+  .patient-row .meta{ font-size:12.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums;}
+  .patient-row .chev{ margin-left:auto; color:var(--muted); font-size:18px; }
+  .patient-row .count{ margin-left:auto; font-size:11px; font-weight:700; background:var(--emerald-bg); color:var(--emerald-ink); border:1px solid var(--emerald-line); border-radius:20px; padding:2px 9px;}
+
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; border-radius:20px; padding:3px 10px; letter-spacing:.01em;}
+  .pill.draft{ background:var(--amber-bg); color:var(--amber-ink); border:1px solid var(--amber-line);}
+  .pill.ok{ background:var(--emerald-bg); color:var(--emerald-ink); border:1px solid var(--emerald-line);}
+
+  .btn { font:inherit; font-weight:600; border-radius:14px; padding:13px 16px; border:0; cursor:pointer; width:100%; font-size:15px; display:flex; align-items:center; justify-content:center; gap:9px; transition:filter .15s, transform .05s;}
+  .btn:active{ transform:translateY(1px); }
+  .btn.primary{ background:var(--brand); color:var(--brand-ink); }
+  .btn.primary:hover{ filter:brightness(1.05); }
+  .btn.ghost{ background:transparent; color:var(--brand-deep); border:1.5px solid var(--brand); }
+  :root[data-theme="dark"] .btn.ghost{ color:var(--brand); }
+  .btn.subtle{ background:color-mix(in srgb,var(--brand) 12%, var(--surface)); color:var(--brand-deep); }
+  :root[data-theme="dark"] .btn.subtle{ color:var(--brand); }
+  .btn.dashed{ background:transparent; border:1.5px dashed color-mix(in srgb,var(--brand) 55%, var(--line)); color:var(--brand-deep); font-weight:600;}
+  :root[data-theme="dark"] .btn.dashed{ color:var(--brand); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn.sm{ padding:10px 12px; font-size:14px; width:auto; }
+
+  .field { width:100%; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px; padding:11px 13px; font:inherit; font-size:15px; margin-bottom:10px;}
+  .field:focus{ outline:2px solid color-mix(in srgb,var(--brand) 55%, transparent); outline-offset:1px; border-color:var(--brand);}
+  textarea.field{ resize:none; line-height:1.5; }
+  label.lbl{ font-size:12.5px; font-weight:600; color:var(--muted); display:block; margin:4px 2px 6px;}
+
+  .passage { padding:13px 14px; border-bottom:1px solid var(--line); }
+  .passage:last-child{ border-bottom:0; }
+  .passage .top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .passage .time{ font-weight:700; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:6px;}
+  .passage .txt{ font-size:14px; line-height:1.5; }
+  .passage .relire{ margin-top:8px; font-size:12.5px; color:var(--brand-deep); font-weight:600; background:transparent; border:0; cursor:pointer; padding:0;}
+  :root[data-theme="dark"] .passage .relire{ color:var(--brand); }
+
+  .empty{ text-align:center; color:var(--muted); font-size:13.5px; padding:26px 10px; border:1px dashed var(--line); border-radius:14px;}
+
+  /* recording */
+  .rec-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:22px; text-align:center;}
+  .mic{ width:132px; height:132px; border-radius:50%; border:0; cursor:pointer; display:grid; place-items:center; font-size:46px; color:#fff;
+        background:radial-gradient(circle at 35% 30%, #34d3c1, var(--brand)); box-shadow:0 18px 40px -12px color-mix(in srgb,var(--brand) 70%, transparent);}
+  .mic.rec{ background:radial-gradient(circle at 35% 30%,#ff8b7d,#d6392b); box-shadow:0 0 0 0 #d6392b66; animation:pulse 1.6s infinite;}
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 #d6392b55;} 70%{box-shadow:0 0 0 26px #d6392b00;} 100%{box-shadow:0 0 0 0 #d6392b00;}}
+  @media (prefers-reduced-motion:reduce){ .mic.rec{ animation:none; } }
+  .timer{ font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:.02em;}
+  .waves{ display:flex; gap:4px; align-items:flex-end; height:34px;}
+  .waves i{ width:4px; background:var(--brand); border-radius:2px; animation:wv 1s ease-in-out infinite;}
+  @keyframes wv{ 0%,100%{height:8px;} 50%{height:30px;} }
+  @media (prefers-reduced-motion:reduce){ .waves i{ animation:none; height:16px;} }
+
+  .tsflag{ background:color-mix(in srgb,var(--amber-ink) 22%, transparent); border-bottom:2px solid var(--amber-line); border-radius:3px; padding:0 2px; cursor:help;}
+
+  .toast{ position:absolute; left:50%; bottom:78px; transform:translateX(-50%); background:var(--ink); color:var(--app-bg); font-size:13px; font-weight:600; padding:10px 16px; border-radius:24px; box-shadow:0 10px 30px -8px #0007; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; white-space:nowrap;}
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  .merge-note{ font-size:12px; color:var(--muted); background:color-mix(in srgb,var(--brand) 8%, transparent); border-radius:10px; padding:9px 11px; line-height:1.5; margin-bottom:12px;}
+  pre.final{ white-space:pre-wrap; font:inherit; font-size:14px; line-height:1.55; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0;}
+  pre.final .t{ color:var(--brand-deep); font-weight:700; font-variant-numeric:tabular-nums;}
+  :root[data-theme="dark"] pre.final .t{ color:var(--brand); }
+
+  .themebtn{ position:fixed; top:16px; right:16px; z-index:20; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; width:40px; height:40px; cursor:pointer; font-size:17px; box-shadow:0 6px 20px -8px #0004;}
+  .tag{ display:inline-flex; gap:6px; align-items:center; font-size:11px; font-weight:700; letter-spacing:.02em; color:var(--brand-deep); background:color-mix(in srgb,var(--brand) 14%, transparent); padding:4px 10px; border-radius:20px;}
+  :root[data-theme="dark"] .tag{ color:var(--brand); }
+</style>
+
+<button class="themebtn" id="themeBtn" title="Basculer le thème" aria-label="Basculer le thème">◐</button>
+
+<div class="stage">
+  <aside class="rail left">
+    <p class="kicker">Prototype · Phase 1</p>
+    <h1>eTransMed</h1>
+    <p>Transmissions vocales pour infirmiers libéraux. Voici le parcours complet d'une tournée, cliquable, avec des données fictives.</p>
+    <div class="tag">🔒 Sélection manuelle du patient · identito-vigilance</div>
+    <div class="legend">
+      <div class="row"><span class="dot" style="background:var(--amber-bg);color:var(--amber-ink);border:1px solid var(--amber-line)">◐</span><span><b>Brouillon</b> — dicté, en attente de relecture et validation.</span></div>
+      <div class="row"><span class="dot" style="background:var(--emerald-bg);color:var(--emerald-ink);border:1px solid var(--emerald-line)">✓</span><span><b>Validé</b> — relu par l'IDE, devient définitif et visible au cabinet.</span></div>
+    </div>
+    <div class="warnbox"><b>⚠︎ Données fictives uniquement</b>Version de démonstration : aucune donnée patient réelle. En production, hébergement HDS obligatoire.</div>
+  </aside>
+
+  <div class="device" role="application" aria-label="Prototype eTransMed">
+    <div class="screen">
+      <div class="statusbar">
+        <span id="clock">08:05</span>
+        <span class="icons">📶 <span class="bat"></span></span>
+      </div>
+      <div id="chrome"></div>
+      <div class="body" id="screen"></div>
+      <div id="tabs"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+  <aside class="rail right">
+    <p class="kicker">Le parcours</p>
+    <div class="flowmap" id="flowmap"></div>
+    <p class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.5">Cliquez une étape pour y sauter, ou suivez le fil dans l'app. La dictée simule une vraie transcription — vous pouvez la corriger avant de valider.</p>
+  </aside>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const initialPatients = [
+    { id:"p1", nom:"BERNARD", prenom:"Odette", dob:"03/02/1938", passages:[
+        { id:"x1", time:"08:05", statut:"valide",
+          text:"Réfection du pansement de l'ulcère de jambe droite, plaie propre en voie de cicatrisation, exsudat modéré. TA 13/8, pouls 72. Glycémie capillaire à jeun 1,42 g/L, insuline 12 unités réalisée. Patiente algique, EVA à 4." }
+      ], transmissionValidated:false },
+    { id:"p2", nom:"FONTAINE", prenom:"Marcel", dob:"17/11/1945", passages:[], transmissionValidated:false },
+    { id:"p3", nom:"GARNIER", prenom:"Louise", dob:"29/07/1952", passages:[], transmissionValidated:false },
+    { id:"p4", nom:"MOREAU", prenom:"Henri", dob:"02/02/1940", passages:[], transmissionValidated:false }
+  ];
+  let patients = JSON.parse(JSON.stringify(initialPatients));
+  let current = null;          // selected patient id
+  let editingPassage = null;   // passage being reviewed
+  const cabinet = "Cabinet des Tamarins";
+
+  // simulated dictation for the live demo (evening visit, BERNARD Odette)
+  const demoRaw = "passage du soir contrôle de la glycémie capillaire à 1,58 g/L insuline 10 unités injectée patiente apaisée douleur EVA à 2 bonne prise du traitement du soir bon état général";
+
+  const screenEl = document.getElementById("screen");
+  const chromeEl = document.getElementById("chrome");
+  const tabsEl   = document.getElementById("tabs");
+  const toastEl  = document.getElementById("toast");
+
+  let route = "login";
+
+  const flow = [
+    ["login","Connexion"],
+    ["patients","Liste patients"],
+    ["patient","Fiche patient"],
+    ["record","Dictée"],
+    ["review","Relecture & validation"],
+    ["transmission","Transmission du jour"],
+    ["transmissions","Partage cabinet"]
+  ];
+
+  function P(){ return patients.find(p=>p.id===current); }
+  function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+  function initials(p){ return (p.nom[0]||"")+(p.prenom[0]||""); }
+
+  function toast(msg){
+    toastEl.textContent = msg; toastEl.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(()=>toastEl.classList.remove("show"), 1900);
+  }
+
+  // ---------- chrome (appbar + ribbon) ----------
+  function renderChrome(){
+    const showRibbon = route!=="login";
+    let bar = "";
+    if(route==="login"){
+      bar = "";
+    } else {
+      const backable = ["patient","record","review","transmission"].includes(route);
+      let title="", sub="";
+      if(route==="patients"){ title="Patients"; sub=cabinet; }
+      else if(route==="transmissions"){ title="Transmissions"; sub="Partagées · "+cabinet; }
+      else if(route==="patient"){ const p=P(); title=p.nom+" "+p.prenom; sub="Né(e) le "+p.dob; }
+      else if(route==="record"){ const p=P(); title="Nouvelle dictée"; sub=p.nom+" "+p.prenom; }
+      else if(route==="review"){ const p=P(); title="Relecture"; sub=p.nom+" "+p.prenom; }
+      else if(route==="transmission"){ const p=P(); title="Transmission du jour"; sub=p.nom+" "+p.prenom; }
+
+      bar = '<div class="appbar">'
+        + (backable
+            ? '<button class="back" id="backBtn" aria-label="Retour">‹</button>'
+            : '<div class="brandmark"><span class="logo">eT</span></div>')
+        + '<div class="grow"><div class="title">'+esc(title)+'</div><div class="sub">'+esc(sub)+'</div></div>'
+        + '</div>';
+    }
+    chromeEl.innerHTML = bar + (showRibbon ? '<div class="ribbon">DÉMO · données fictives — non-HDS</div>' : '');
+    const bb = document.getElementById("backBtn");
+    if(bb) bb.onclick = ()=>{
+      if(route==="patient") go("patients");
+      else if(route==="record"||route==="transmission") go("patient");
+      else if(route==="review") go("record");
+    };
+  }
+
+  function renderTabs(){
+    const show = ["patients","patient","transmissions"].includes(route);
+    if(!show){ tabsEl.innerHTML=""; return; }
+    const t = (route==="transmissions")?"transmissions":"patients";
+    tabsEl.innerHTML = '<div class="tabbar">'
+      + '<button data-go="patients" '+(t==="patients"?'aria-current="true"':'')+'><span class="ic">👥</span>Patients</button>'
+      + '<button data-go="transmissions" '+(t==="transmissions"?'aria-current="true"':'')+'><span class="ic">📋</span>Transmissions</button>'
+      + '</div>';
+    tabsEl.querySelectorAll("[data-go]").forEach(b=> b.onclick=()=>go(b.dataset.go));
+  }
+
+  function renderFlow(){
+    document.getElementById("flowmap").innerHTML = flow.map((f,i)=>
+      '<button data-r="'+f[0]+'" '+(f[0]===route?'aria-current="true"':'')+'>'
+      +'<span class="n">'+(i+1)+'</span>'+f[1]+'</button>'
+    ).join("");
+    document.querySelectorAll("#flowmap [data-r]").forEach(b=> b.onclick=()=>{
+      const r=b.dataset.r;
+      if((r==="patient"||r==="record"||r==="transmission"||r==="review") && !current) current="p1";
+      if(r==="review"){ // need a draft to review
+        current="p1"; ensureDemoDraft(); editingPassage = P().passages.find(x=>x.statut==="brouillon");
+      }
+      go(r);
+    });
+  }
+
+  function ensureDemoDraft(){
+    const p=P();
+    if(!p.passages.some(x=>x.statut==="brouillon")){
+      p.passages.push({ id:"d"+Date.now(), time:"18:30", statut:"brouillon", text:tidy(demoRaw), raw:true });
+    }
+  }
+
+  // ---------- screens ----------
+  function view(html){ screenEl.innerHTML = '<div class="fade">'+html+'</div>'; }
+
+  function screenLogin(){
+    view(
+      '<div style="height:100%;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:8px 6px 30px">'
+      + '<div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:26px">'
+      +   '<div style="width:76px;height:76px;border-radius:22px;background:linear-gradient(140deg,#5eead4,#0d9488);display:grid;place-items:center;color:#04312b;font-weight:800;font-size:30px;box-shadow:inset 0 0 0 1px #ffffff40, 0 16px 34px -14px #0d948899">eT</div>'
+      +   '<div style="text-align:center"><div style="font-size:23px;font-weight:800;letter-spacing:-.02em">eTransMed</div>'
+      +   '<div class="muted" style="font-size:13.5px;margin-top:3px">Transmissions infirmières</div></div>'
+      + '</div>'
+      + '<label class="lbl">Adresse e-mail</label>'
+      + '<input class="field" value="claire.durand@cabinet-tamarins.fr" readonly>'
+      + '<label class="lbl">Mot de passe</label>'
+      + '<input class="field" type="password" value="••••••••••" readonly>'
+      + '<button class="btn primary" id="loginBtn" style="margin-top:8px">Se connecter</button>'
+      + '<div class="muted" style="font-size:11.5px;text-align:center;margin-top:14px;line-height:1.5">🔐 Authentification à deux facteurs · cloisonnement par cabinet</div>'
+      + '</div>'
+    );
+    document.getElementById("loginBtn").onclick = ()=>{ go("patients"); toast("Bienvenue, Claire 👋"); };
+  }
+
+  function screenPatients(){
+    const rows = patients.slice().sort((a,b)=> a.nom.localeCompare(b.nom)||a.prenom.localeCompare(b.prenom)).map(p=>{
+      const done = p.passages.filter(x=>x.statut==="valide").length;
+      const draft = p.passages.some(x=>x.statut==="brouillon");
+      const badge = draft
+        ? '<span class="count" style="background:var(--amber-bg);color:var(--amber-ink);border-color:var(--amber-line)">● à valider</span>'
+        : (done? '<span class="count">'+done+' passage'+(done>1?'s':'')+'</span>' : '<span class="chev">›</span>');
+      return '<button class="patient-row" data-p="'+p.id+'">'
+        + '<span class="avatar">'+initials(p)+'</span>'
+        + '<span><span class="nm">'+esc(p.nom)+' '+esc(p.prenom)+'</span>'
+        + '<span class="meta">'+p.dob+'</span></span>'
+        + badge + '</button>';
+    }).join("");
+
+    view(
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 2px 12px">'
+      + '<h2 class="h">Ma tournée</h2>'
+      + '<span class="muted" style="font-size:13px;font-weight:600">'+patients.length+' patients</span></div>'
+      + '<button class="btn dashed" id="addBtn" style="margin-bottom:14px">＋ Ajouter un patient à la volée</button>'
+      + '<div id="addForm"></div>'
+      + '<div class="card list">'+rows+'</div>'
+    );
+    screenEl.querySelectorAll("[data-p]").forEach(b=> b.onclick=()=>{ current=b.dataset.p; go("patient"); });
+    document.getElementById("addBtn").onclick = showAddForm;
+  }
+
+  function showAddForm(){
+    const f = document.getElementById("addForm");
+    document.getElementById("addBtn").style.display="none";
+    f.innerHTML = '<div class="card" style="padding:14px;margin-bottom:14px">'
+      + '<label class="lbl">Nom</label><input class="field" id="fn" placeholder="Ex. PETIT">'
+      + '<label class="lbl">Prénom</label><input class="field" id="fp" placeholder="Ex. Suzanne">'
+      + '<label class="lbl">Date de naissance <span class="muted" style="font-weight:500">— clé anti-homonymie</span></label>'
+      + '<input class="field" id="fd" placeholder="JJ/MM/AAAA">'
+      + '<div style="display:flex;gap:8px;margin-top:4px">'
+      +   '<button class="btn primary sm" id="saveP" style="flex:1">Enregistrer</button>'
+      +   '<button class="btn subtle sm" id="cancelP">Annuler</button></div>'
+      + '</div>';
+    document.getElementById("cancelP").onclick = ()=>{ f.innerHTML=""; document.getElementById("addBtn").style.display=""; };
+    document.getElementById("saveP").onclick = ()=>{
+      const nom=(document.getElementById("fn").value||"").trim();
+      const pre=(document.getElementById("fp").value||"").trim();
+      const dob=(document.getElementById("fd").value||"").trim();
+      if(!nom||!pre){ toast("Nom et prénom requis"); return; }
+      patients.push({ id:"n"+Date.now(), nom:nom.toUpperCase(), prenom:pre, dob:dob||"—", passages:[], transmissionValidated:false });
+      toast("Patient ajouté");
+      go("patients");
+    };
+  }
+
+  function screenPatient(){
+    const p=P();
+    const passages = p.passages.slice().sort((a,b)=>a.time.localeCompare(b.time));
+    const list = passages.length ? passages.map(x=>{
+      const pill = x.statut==="valide" ? '<span class="pill ok">✓ validé</span>' : '<span class="pill draft">◐ brouillon</span>';
+      return '<div class="passage"><div class="top"><span class="time">🕐 '+x.time+'</span>'+pill+'</div>'
+        + '<div class="txt">'+esc(x.text)+'</div>'
+        + (x.statut!=="valide" ? '<button class="relire" data-edit="'+x.id+'">Relire et valider ›</button>' : '')
+        + '</div>';
+    }).join("") : '<div class="empty">Aucun passage aujourd\'hui.<br>Touchez « Nouvelle dictée » pour commencer.</div>';
+
+    const validCount = passages.filter(x=>x.statut==="valide").length;
+    let transBlock;
+    if(p.transmissionValidated){
+      transBlock = '<div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="sec-label" style="margin:0">Transmission du jour</span><span class="pill ok">✓ validée</span></div>'
+        + '<pre class="final">'+mergedHTML(p)+'</pre></div>';
+    } else if(validCount>0){
+      transBlock = '<button class="btn primary" id="genBtn">Générer la transmission · '+validCount+' passage'+(validCount>1?'s':'')+'</button>';
+    } else {
+      transBlock = '<button class="btn primary" disabled>Aucun passage validé</button>';
+    }
+
+    view(
+      '<button class="btn primary" id="dicteBtn" style="margin:2px 0 4px">🎙️ Nouvelle dictée</button>'
+      + '<div class="sec-label">Passages du jour · '+passages.length+'</div>'
+      + '<div class="card list">'+list+'</div>'
+      + '<div class="sec-label">Synthèse</div>'
+      + transBlock
+    );
+    document.getElementById("dicteBtn").onclick = ()=> go("record");
+    const g=document.getElementById("genBtn"); if(g) g.onclick=()=>go("transmission");
+    screenEl.querySelectorAll("[data-edit]").forEach(b=> b.onclick=()=>{
+      editingPassage = p.passages.find(x=>x.id===b.dataset.edit); go("review");
+    });
+  }
+
+  // recording screen with simulated capture + transcription
+  let recTimer=null, recSecs=0, recording=false;
+  function screenRecord(){
+    recording=false; recSecs=0;
+    view(
+      '<div class="rec-wrap">'
+      + '<div id="recHint" class="muted" style="font-size:14px">Touchez le micro pour dicter votre observation.</div>'
+      + '<button class="mic" id="micBtn" aria-label="Démarrer la dictée">🎙️</button>'
+      + '<div class="timer" id="timer" style="visibility:hidden">00:00</div>'
+      + '<div class="waves" id="waves" style="visibility:hidden">'+Array(9).fill('<i></i>').join("")+'</div>'
+      + '<div class="muted" style="font-size:11.5px;max-width:230px;line-height:1.5">🔒 L\'audio est conservé (ré-écoutable) et associé au patient sélectionné. Fonctionne hors connexion.</div>'
+      + '</div>'
+    );
+    const waves = screenEl.querySelectorAll(".waves i");
+    waves.forEach((w,i)=> w.style.animationDelay=(i*0.08)+"s");
+    const mic=document.getElementById("micBtn"), timer=document.getElementById("timer"), wv=document.getElementById("waves"), hint=document.getElementById("recHint");
+    mic.onclick = ()=>{
+      if(!recording){
+        recording=true; recSecs=0; mic.classList.add("rec"); mic.textContent="⏹";
+        timer.style.visibility="visible"; wv.style.visibility="visible"; hint.textContent="Enregistrement en cours… touchez pour arrêter.";
+        recTimer=setInterval(()=>{ recSecs++; const m=String(Math.floor(recSecs/60)).padStart(2,"0"), s=String(recSecs%60).padStart(2,"0"); timer.textContent=m+":"+s; }, 1000);
+      } else {
+        recording=false; clearInterval(recTimer); mic.classList.remove("rec"); mic.textContent="🎙️";
+        hint.textContent="Transcription en cours…"; wv.style.visibility="hidden";
+        // simulate on-device transcription latency
+        view('<div class="rec-wrap"><div class="waves" style="visibility:visible">'+Array(9).fill('<i></i>').join("")+'</div><div class="muted" style="font-size:14px">Transcription de l\'audio…</div></div>');
+        screenEl.querySelectorAll(".waves i").forEach((w,i)=> w.style.animationDelay=(i*0.08)+"s");
+        setTimeout(()=>{
+          const p=P();
+          editingPassage = { id:"d"+Date.now(), time:"18:30", statut:"brouillon", text:tidy(demoRaw), raw:true, isNew:true };
+          go("review");
+        }, 1400);
+      }
+    };
+  }
+
+  function tidy(s){
+    let t = s.charAt(0).toUpperCase()+s.slice(1);
+    return t;
+  }
+
+  function screenReview(){
+    const p=P(); const x=editingPassage;
+    // flag a low-confidence numeric token (dose) for verification
+    view(
+      '<div class="tag" style="margin:2px 0 12px">🎧 Audio conservé · ré-écoutable</div>'
+      + '<div class="card" style="padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:12px">'
+      +   '<button class="btn subtle sm" style="width:auto" id="playBtn">▶</button>'
+      +   '<div style="flex:1;height:6px;border-radius:3px;background:var(--line);position:relative;overflow:hidden"><div id="playbar" style="position:absolute;left:0;top:0;bottom:0;width:0;background:var(--brand)"></div></div>'
+      +   '<span class="muted" style="font-size:12px;font-variant-numeric:tabular-nums">0:'+String(18+ (recSecs%40)).padStart(2,"0")+'</span>'
+      + '</div>'
+      + '<label class="lbl">Relecture — corrigez avant de valider</label>'
+      + '<textarea class="field" id="ta" rows="7">'+esc(x.text)+'</textarea>'
+      + '<div class="warnbox" style="margin-top:2px;margin-bottom:14px"><b>⚠︎ Vérifiez les chiffres</b>Confirmez les posologies et valeurs (ex. <span class="tsflag" title="Segment à confiance faible">insuline 10 unités</span>) : une erreur de dictée engage votre responsabilité.</div>'
+      + '<button class="btn primary" id="valBtn">✓ Valider le passage</button>'
+      + '<button class="btn subtle" id="cancelBtn" style="margin-top:8px">Annuler</button>'
+    );
+    // fake playback
+    document.getElementById("playBtn").onclick = function(){
+      const bar=document.getElementById("playbar"); let w=0; this.textContent="⏸";
+      const iv=setInterval(()=>{ w+=3; bar.style.width=Math.min(w,100)+"%"; if(w>=100){ clearInterval(iv); document.getElementById("playBtn").textContent="▶"; bar.style.width="0"; } },60);
+    };
+    document.getElementById("cancelBtn").onclick = ()=> go(x.isNew? "record":"patient");
+    document.getElementById("valBtn").onclick = ()=>{
+      const val=document.getElementById("ta").value.trim();
+      if(!val){ toast("Le texte ne peut pas être vide"); return; }
+      if(x.isNew){
+        p.passages.push({ id:x.id, time:x.time, statut:"valide", text:val });
+      } else {
+        const ref=p.passages.find(pp=>pp.id===x.id); ref.text=val; ref.statut="valide";
+      }
+      editingPassage=null;
+      toast("Passage validé ✓");
+      go("patient");
+    };
+  }
+
+  function mergedHTML(p){
+    return p.passages.filter(x=>x.statut==="valide").sort((a,b)=>a.time.localeCompare(b.time))
+      .map(x=> '<span class="t">'+x.time+'</span> — '+esc(x.text)).join("\n\n");
+  }
+  function mergedText(p){
+    return p.passages.filter(x=>x.statut==="valide").sort((a,b)=>a.time.localeCompare(b.time))
+      .map(x=> x.time+" — "+x.text).join("\n\n");
+  }
+
+  function screenTransmission(){
+    const p=P();
+    view(
+      '<div class="merge-note">🔗 Fusion chronologique des <b>'+p.passages.filter(x=>x.statut==="valide").length+' passages validés</b> du jour, horodatés. Relisez l\'ensemble puis validez : la transmission devient visible par tout le cabinet.</div>'
+      + '<label class="lbl">Format</label>'
+      + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+      +   '<button class="btn subtle sm" id="fFluide" style="flex:1;border:2px solid var(--brand)">Texte fluide</button>'
+      +   '<button class="btn subtle sm" id="fCible" style="flex:1;opacity:.6">Transmission ciblée</button>'
+      + '</div>'
+      + '<textarea class="field" id="tta" rows="10">'+esc(mergedText(p))+'</textarea>'
+      + '<button class="btn primary" id="valT">✓ Valider · rendre visible au cabinet</button>'
+      + '<button class="btn subtle" id="regen" style="margin-top:8px">↻ Regénérer depuis les passages</button>'
+    );
+    document.getElementById("fCible").onclick=()=>toast("Format ciblé (Cible/Données/Actions/Résultats) — V1 configurable");
+    document.getElementById("regen").onclick=()=>{ document.getElementById("tta").value=mergedText(p); toast("Regénéré"); };
+    document.getElementById("valT").onclick=()=>{
+      p.transmissionValidated=true;
+      toast("Transmission validée — visible au cabinet ✓");
+      go("patient");
+    };
+  }
+
+  function screenTransmissions(){
+    const items=[];
+    patients.forEach(p=>{ if(p.transmissionValidated) items.push(p); });
+    // seed one pre-existing validated transmission from a colleague for context
+    const seed = '<div class="card" style="padding:14px;margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +   '<span style="font-weight:700;color:var(--brand-deep)">GARNIER Louise</span>'
+      +   '<span class="muted" style="font-size:12px">Aujourd\'hui · S. Payet</span></div>'
+      + '<pre class="final"><span class="t">07:40</span> — Toilette et aide à l\'habillage. Surveillance des constantes : TA 12/7, température 36,8°C. Patiente autonome pour le repas. Bon moral.</pre></div>';
+
+    const mine = items.map(p=>
+      '<div class="card" style="padding:14px;margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +   '<span style="font-weight:700;color:var(--brand-deep)">'+esc(p.nom)+' '+esc(p.prenom)+'</span>'
+      +   '<span class="muted" style="font-size:12px">Aujourd\'hui · C. Durand</span></div>'
+      + '<pre class="final">'+mergedHTML(p)+'</pre></div>'
+    ).join("");
+
+    view(
+      '<h2 class="h" style="margin-bottom:4px">Transmissions validées</h2>'
+      + '<p class="muted" style="font-size:13px;margin:0 0 14px">Visibles par toute l\'équipe du cabinet.</p>'
+      + mine + seed
+    );
+  }
+
+  // ---------- router ----------
+  const screens = { login:screenLogin, patients:screenPatients, patient:screenPatient,
+    record:screenRecord, review:screenReview, transmission:screenTransmission, transmissions:screenTransmissions };
+
+  function go(r){
+    route=r;
+    if(recTimer) clearInterval(recTimer);
+    renderChrome(); (screens[r]||screenPatients)(); renderTabs(); renderFlow();
+    screenEl.scrollTop=0;
+  }
+
+  // ---------- theme ----------
+  const tb=document.getElementById("themeBtn");
+  tb.onclick=()=>{
+    const root=document.documentElement;
+    const cur=root.getAttribute("data-theme")
+      || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+    root.setAttribute("data-theme", cur==="dark"?"light":"dark");
+  };
+
+  // live clock
+  function tick(){
+    const d=new Date();
+    document.getElementById("clock").textContent =
+      String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  }
+  tick(); setInterval(tick,15000);
+
+  go("login");
+})();
+</script>
