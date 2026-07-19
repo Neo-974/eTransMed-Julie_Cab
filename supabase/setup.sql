@@ -1,10 +1,8 @@
 -- eTransMed — SETUP COMPLET (NOUVEAU projet Supabase, SQL Editor)
--- Schéma de base + inscription + tournées + paramètres cabinet & invitations.
+-- Base + inscription + tournées + paramètres cabinet & invitations + gestion membres.
 -- Rejouable (idempotent). Données fictives / anonymisées uniquement (non-HDS).
 
--- ====================================================================
--- PARTIE 1 — SCHÉMA DE BASE
--- ====================================================================
+-- ==== PARTIE 1 — SCHÉMA DE BASE ====
 
 -- eTransMed — Schéma PostgreSQL pour Supabase
 -- VERSION TEST — données fictives uniquement (Supabase n'est pas HDS).
@@ -223,9 +221,7 @@ create policy "audio_cabinet_write" on storage.objects
     and (storage.foldername(name))[1] = public.current_cabinet_id()::text
   );
 
--- ====================================================================
--- PARTIE 2 — TOURNÉES
--- ====================================================================
+-- ==== PARTIE 2 — TOURNÉES ====
 
 -- eTransMed — Ajout des TOURNÉES
 -- À exécuter UNE FOIS dans le SQL Editor de Supabase (après schema.sql).
@@ -291,9 +287,7 @@ do $$ begin
     with check (cabinet_id = public.current_cabinet_id());
 exception when duplicate_object then null; end $$;
 
--- ====================================================================
--- PARTIE 3 — PARAMÈTRES CABINET & INVITATIONS
--- ====================================================================
+-- ==== PARTIE 3 — PARAMÈTRES CABINET & INVITATIONS ====
 
 -- eTransMed — Paramètres cabinet + Invitations (code cabinet)
 -- À exécuter UNE FOIS dans le SQL Editor (après schema.sql). Idempotent.
@@ -380,3 +374,25 @@ $$;
 
 grant execute on function public.create_cabinet_and_join(text, text) to authenticated;
 grant execute on function public.join_cabinet_with_code(text, text, text) to authenticated;
+
+-- ==== PARTIE 4 — GESTION DES MEMBRES ====
+
+-- eTransMed — Gestion des membres par le titulaire
+-- (renommer, changer de rôle, retirer du cabinet). À exécuter une fois. Idempotent.
+
+-- L'utilisateur courant est-il titulaire ? (SECURITY DEFINER : pas de récursion RLS)
+create or replace function public.is_titulaire()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce((select role = 'titulaire' from public.profiles where id = auth.uid()), false)
+$$;
+
+-- Le titulaire peut modifier les profils de son cabinet (nom, rôle) et détacher
+-- un membre (cabinet_id -> NULL = « retirer du cabinet »).
+do $$ begin
+  create policy "profiles_titulaire_update" on public.profiles
+    for update
+    using (cabinet_id = public.current_cabinet_id() and public.is_titulaire())
+    with check (cabinet_id = public.current_cabinet_id() or cabinet_id is null);
+exception when duplicate_object then null; end $$;

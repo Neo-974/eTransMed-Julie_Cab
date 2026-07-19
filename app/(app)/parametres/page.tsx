@@ -1,14 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import ParametresForm from "./parametres-form";
+import MembersManager from "./members-manager";
 
 export const dynamic = "force-dynamic";
-
-const ROLE_LABEL: Record<string, string> = {
-  titulaire: "Titulaire",
-  collaborateur: "Collaborateur",
-  remplacant: "Remplaçant",
-};
 
 export default async function ParametresPage() {
   const supabase = createClient();
@@ -16,7 +11,7 @@ export default async function ParametresPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("cabinet_id")
+    .select("cabinet_id, role")
     .eq("id", userData.user!.id)
     .single();
 
@@ -49,14 +44,15 @@ export default async function ParametresPage() {
         <h2 className="mb-2 text-sm font-semibold text-slate-600">
           Praticiens du cabinet ({membres?.length ?? 0})
         </h2>
-        <ul className="divide-y rounded-lg border">
-          {(membres ?? []).map((m) => (
-            <li key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span className="font-medium">{m.nom_complet ?? "—"}</span>
-              <span className="text-xs text-slate-500">{ROLE_LABEL[m.role] ?? m.role}</span>
-            </li>
-          ))}
-        </ul>
+        <MembersManager
+          members={(membres ?? []).map((m) => ({
+            id: m.id as string,
+            nom_complet: m.nom_complet,
+            role: m.role as string,
+          }))}
+          currentUserId={userData.user!.id}
+          isTitulaire={profile?.role === "titulaire"}
+        />
       </section>
     </div>
   );
